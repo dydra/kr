@@ -4,7 +4,7 @@
        edu.ucdenver.ccp.kr.clj-ify
        [edu.ucdenver.ccp.kr.rdf :exclude (resource)]
        clojure.java.io)
-  (import 
+  (import
    java.io.IOException
 
    ;interfaces
@@ -35,7 +35,7 @@
 (defn sesame-iteration-seq [results]
   (lazy-seq
    (when (.hasNext results)
-     (cons 
+     (cons
       (.next results)
       (sesame-iteration-seq results)))))
 
@@ -59,7 +59,7 @@
   (.setNamespace (connection! kb) short long))
 
 ;;TODO? use clj-ify under the hood?
-(defn sesame-server-ns-map [kb] 
+(defn sesame-server-ns-map [kb]
   (reduce (fn [m ns]
             (assoc m (.getPrefix ns) (.getName ns)))
           {}
@@ -76,37 +76,47 @@
 ;;maybe this shoudl be
 ;;  (.createURI (kb :value-factory) uri-string))
 
-(defn sesame-create-resource 
-  [kb r] 
+(defn sesame-create-resource
+  [kb r]
   ^Resource (sesame-uri r))
 
-(defn sesame-create-property 
-  [kb p] 
+(defn sesame-create-property
+  [kb p]
   (sesame-uri p))
 
-(defn sesame-create-blank-node 
-  [kb id] 
+(defn sesame-create-blank-node
+  [kb id]
   (.createBNode (:value-factory kb) id))
 
-(defn sesame-create-literal 
+(defn sesame-create-literal
   ([kb l]
      (.createLiteral (:value-factory kb) l))
   ([kb s type-or-lang]
      ;(println kb s type-or-lang)
      (.createLiteral (:value-factory kb)
-                     s 
+                     s
                      (if (string? type-or-lang)
                        type-or-lang
                        (edu.ucdenver.ccp.kr.rdf/resource kb type-or-lang)))))
 
+(defn sesame-create-language-string-literal
+  ([kb s lang]
+     (.createLiteral (:value-factory kb)
+                     s
+                     lang)))
 
-(defn sesame-create-statement 
+(defn sesame-create-string-literal
+  ([kb s]
+     (.createLiteral (:value-factory kb)
+                     s)))
+
+(defn sesame-create-statement
   [kb s p o]
     (StatementImpl. s p o))
 
 (defn sesame-context-array
   ([] (make-array Resource 0))
-  ([kb c] (if c 
+  ([kb c] (if c
             (let [a (make-array Resource 1)]
               (aset a 0 ^Resource (edu.ucdenver.ccp.kr.rdf/resource kb c))
               ;;(sesame-uri (resource-ify c)))
@@ -173,7 +183,7 @@
   ;;(str l))
 
 (defn literal-to-value [kb l]
-  (literal-clj-ify kb l)) 
+  (literal-clj-ify kb l))
 
 (defn literal-language [l]
   (let [lang (.getLanguage l)]
@@ -184,31 +194,31 @@
 
 (defn literal-type-or-language [kb l]
   (or (let [dt (.getDatatype l)]
-        (and dt 
+        (and dt
              (clj-ify kb dt)))
              ;;(convert-string-to-sym kb dt)))
       (literal-language l)))
       ;;(.getLanguage l)))
 
 (defn literal-to-clj [kb l]
-  (clj-ify-literal kb l 
-                   literal-to-value 
-                   literal-to-string-value 
+  (clj-ify-literal kb l
+                   literal-to-value
+                   literal-to-string-value
                    literal-type-or-language))
 
 ;;; clj-ify
 ;;; --------------------------------------------------------
 
-(defmethod clj-ify org.openrdf.model.URI [kb r] 
+(defmethod clj-ify org.openrdf.model.URI [kb r]
   (if (or (= "" (.getLocalName r))
           (= "" (.getNamespace r)))
     (convert-string-to-sym kb (.stringValue r))
-    (convert-string-to-sym kb 
-                           (.stringValue r) 
-                           (.getNamespace r) 
+    (convert-string-to-sym kb
+                           (.stringValue r)
+                           (.getNamespace r)
                            (.getLocalName r))))
 
-(defmethod clj-ify org.openrdf.model.Resource [kb r] 
+(defmethod clj-ify org.openrdf.model.Resource [kb r]
   (convert-string-to-sym kb (.stringValue r)))
 
 (defmethod clj-ify org.openrdf.model.BNode [kb bnode]
@@ -243,17 +253,17 @@
 
 (defn sesame-add-statement
   ([kb stmt] (.add (connection! kb)
-                   ^Statment stmt 
+                   ^Statment stmt
                    (sesame-context-array))) ;;(make-array Resource 0)))
   ([kb stmt context] (.add (connection! kb)
-                           ^Statement stmt 
+                           ^Statement stmt
                            (sesame-context-array kb context)))
-  ([kb s p o] (.add (connection! kb) 
+  ([kb s p o] (.add (connection! kb)
                     ^Statement (statement kb s p o)
                     (sesame-context-array)))
-  ([kb s p o context] (.add (connection! kb) 
+  ([kb s p o context] (.add (connection! kb)
                             ^Statement (statement kb s p o)
-                            ;;^Resource s p o 
+                            ;;^Resource s p o
                             (sesame-context-array kb context))))
 
 
@@ -263,7 +273,7 @@
                                      (apply statement kb s))
                                    stmts)
                     (sesame-context-array)))
-  ([kb stmts context] (.add (connection! kb) 
+  ([kb stmts context] (.add (connection! kb)
                             ^Iterable (map (fn [s]
                                              (apply statement kb s))
                                            stmts)
@@ -278,8 +288,8 @@
 (defmethod convert-to-sesame-type :turtle [sym] RDFFormat/TURTLE)
 
 (defn sesame-load-rdf-file
-  ([kb file] 
-     (.add (connection! kb) 
+  ([kb file]
+     (.add (connection! kb)
            file
            "" ;nil ;""
            (RDFFormat/forFileName (.getName file))
@@ -307,8 +317,8 @@
 ;;; --------------------------------------------------------
 
 (defn sesame-ask-statement
-  ([kb s p o context] 
-     (.hasStatement ^RepositoryConnection (connection! kb) 
+  ([kb s p o context]
+     (.hasStatement ^RepositoryConnection (connection! kb)
                     ^Resource (and s (edu.ucdenver.ccp.kr.rdf/resource kb s))
                     ^URI (and p (property kb p))
                     ^Value (and o (object kb o))
@@ -318,7 +328,7 @@
 (defn sesame-query-statement
   ([kb s p o context]
      (clj-ify kb
-       (.getStatements ^RepositoryConnection (connection! kb) 
+       (.getStatements ^RepositoryConnection (connection! kb)
                        ^Resource (and s (edu.ucdenver.ccp.kr.rdf/resource kb s))
                        ^URI (and p (property kb p))
                        ^Value (and o (object kb o))

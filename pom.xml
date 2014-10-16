@@ -57,7 +57,7 @@
     -->
     <repository>
       <id>clojars.org</id>
-      <name>Clojars Repository</name>
+<!--      <name>Clojars Repository</name> -->
       <url>https://clojars.org/repo/</url>
     </repository>
   </distributionManagement>
