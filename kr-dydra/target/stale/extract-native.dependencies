@@ -1,0 +1,1 @@
+([:dependencies ([org.clojure/clojure "1.6.0"] [edu.ucdenver.ccp/kr-sesame-core "1.4.17"] [com.dydra/dydra-ndk "0.0.1"] [org.clojure/tools.nrepl "0.2.6" :exclusions ([org.clojure/clojure]) :scope "test"] [clojure-complete/clojure-complete "0.2.3" :exclusions ([org.clojure/clojure]) :scope "test"])])
