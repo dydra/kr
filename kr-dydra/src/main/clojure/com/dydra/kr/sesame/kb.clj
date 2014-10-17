@@ -44,11 +44,11 @@
 ;;; --------------------------------------------------------
 
 (declare dydra-initialize
-         new-dydra-connection
+         ensure-dydra-connection
          close-existing-dydra-connection)
 
 (defn dydra-connection [kb]
-  (new-dydra-connection kb))
+  (ensure-dydra-connection kb))
 
 (defn close-dydra-connection [kb]
   (close-existing-dydra-connection kb))
@@ -62,12 +62,12 @@
 ;;; protocol implementation
 ;;; --------------------------------------------------------
 
-(defrecord DydraKB [repository kb-features]
+(defrecord DydraKB [repository connection kb-features]
   KB
 
   (native [kb] repository)
   (initialize [kb] (dydra-initialize kb))
-  (open [kb] (new-dydra-connection kb))
+  (open [kb] (ensure-dydra-connection kb))
   (close [kb] (close-dydra-connection kb))
   (features [kb] kb-features)
 
@@ -185,7 +185,9 @@
 
 (defn dydra-kb-helper [repository]
   (initialize-ns-mappings
-   (assoc (DydraKB. repository *kb-features*)
+   (assoc (DydraKB. repository
+                    (.getConnection repository)
+		    *kb-features*)
      :value-factory (.getValueFactory repository))))
 
 
@@ -211,12 +213,13 @@
                                  password *password*}}]
   ;; (println "server" server  " name" repo-name)
   ;; (println "username" username  " password" password)
+  (assert repo-name "A repo-name is required.") 
   (let [repository (com.dydra.ndk.sesame.DydraRepository. repo-name)]
-    (.setPreferredTupleQueryResultFormat repository
-                                         TupleQueryResultFormat/SPARQL)
+    (.initialize repository)
+    ; (.setPreferredTupleQueryResultFormat repository TupleQueryResultFormat/SPARQL)
     (if (and username password)
       (.setUsernameAndPassword repository username password))
-    (sesame-kb-helper repository)))
+    (dydra-kb-helper repository)))
 
 ;; (defn new-sesame-server-helper [server & [repo-name username password]]
 ;;   (apply new-sesame-server
@@ -226,18 +229,31 @@
 ;;                  (if password [:password password] nil))))
 
 
-(defn new-dydra-connection [kb]
-  (copy-dydra-slots (assoc (DydraKB.  (:server kb)
-                                      (features kb))
-                       :value-factory (:value-factory kb))
-                     kb))
+(defn ensure-dydra-connection
+  "Ensure that the given kb binds an initialized (open) repository connection.
+   If so, return it unchanged, otherwise re-open the repository and return a
+   new DydraKB which comprises the new connection"
+  [kb]
+  (let [repository (:repository kb)]
+    (if (.isInitialized repository)
+      kb
+      (do (.initialize repository)
+          (copy-dydra-slots (assoc (DydraKB. repository
+                                             (.getConnection repository)
+                                             (features kb))
+                                   :value-factory (:value-factory kb))
+                            kb)))))
 
-(defn close-dydra-connection [kb]
-  (when (:connection kb)
-    (.close (:connection kb)))
-  (copy-dydra-slots (assoc (DydraKB. (:server kb) (features kb))
-                       :value-factory (:value-factory kb))
-                     kb))
+(defn close-dydra-connection
+  "Ensure that the respective repository is closed and return a new
+   DydraKB which releases the connection"
+  [kb]
+  (let [repository (:repository kb)]
+    (when (.isInitialized repository)
+      (.shutDown repository))
+    (copy-dydra-slots (assoc (DydraKB. repository nil (features kb))
+                             :value-factory (:value-factory kb))
+                       kb)))
 
 
 ;(defmethod kb com.dydra.ndk.sesame.HTTPRepository [arg]

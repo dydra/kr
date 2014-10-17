@@ -1,4 +1,4 @@
-(ns edu.ucdenver.ccp.kr.sesame.sparql
+(ns com.dydra.kr.sesame.sparql
   (use edu.ucdenver.ccp.kr.variable
        edu.ucdenver.ccp.kr.kb
        edu.ucdenver.ccp.kr.clj-ify
